@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Mijoz paneli — {{ cfg.company_name or 'UstaBor' }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+  <div class="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+    <div>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-2">
+        <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+        Mijoz kabineti
+      </span>
+      {% if client %}
+        <h1 class="text-2xl font-extrabold text-slate-900">Xush kelibsiz, {{ client.full_name }}!</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Telefon: <strong>{{ client.phone }}</strong> — Sayt va Telegram orqali berilgan barcha arizalaringiz</p>
+      {% else %}
+        <h1 class="text-2xl font-extrabold text-slate-900">Arizalarni kuzatish (Mijoz paneli)</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Telefon raqamingizni kiriting yoki shaxsiy kabinetingizga kiring</p>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <a href="{{ nav.site_url if nav else '/' }}#xizmatlar" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition inline-flex items-center gap-1.5">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Yangi ariza
+      </a>
+      {% if client %}
+        <a href="/client/logout" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">
+          Chiqish
+        </a>
+      {% else %}
+        <a href="/client/login" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">
+          Kirish / Ro'yxatdan o'tish
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not client %}
+  <form method="GET" action="{{ nav.client_url if nav else '/client' }}" class="mt-6 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row gap-3">
+    <input
+      type="tel"
+      name="phone"
+      value="{{ lookup_phone }}"
+      placeholder="Telefon raqamingiz (+998901234567)"
+      required
+      class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <button type="submit" class="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold transition cursor-pointer">
+      Arizalarimni topish
+    </button>
+  </form>
+  {% endif %}
+
+  <div class="mt-6 space-y-4">
+    {% if orders %}
+      {% for o in orders %}
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm font-extrabold text-slate-900">{{ o.order_code }}</span>
+              <span class="status-badge status-{{ o.status }}">{{ status_labels.get(o.status, o.status) }}</span>
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold {{ 'bg-sky-50 text-sky-700' if o.source == 'telegram' else 'bg-slate-100 text-slate-700' }}">
+                {{ '🤖 Telegram Bot' if o.source == 'telegram' else '🌐 Sayt' }}
+              </span>
+            </div>
+            <h3 class="mt-2 text-lg font-bold text-slate-900">{{ o.service_name }}</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Yuborilgan: {{ o.created_at }} • Vaqt: {{ o.preferred_time }}</p>
+          </div>
+          <div class="text-right">
+            {% if o.estimated_price %}
+              <div class="text-xs text-slate-400 font-semibold">Taxminiy narx</div>
+              <div class="text-base font-extrabold text-slate-900">{{ o.estimated_price|uzs }} so'm</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Status Timeline -->
+        {% set steps = [('new', 'Yangi'), ('accepted', 'Qabul qilindi'), ('on_the_way', 'Usta yo\'lda'), ('in_progress', 'Jarayonda'), ('completed', 'Bajarildi')] %}
+        {% set order_idx = {'new': 0, 'accepted': 1, 'on_the_way': 2, 'in_progress': 3, 'completed': 4}.get(o.status, -1) %}
+        {% if o.status != 'cancelled' %}
+        <div class="mt-4 grid grid-cols-5 gap-1.5">
+          {% for code, label in steps %}
+          <div class="text-center">
+            <div class="h-1.5 rounded-full {{ 'bg-blue-600' if loop.index0 <= order_idx else 'bg-slate-200' }}"></div>
+            <span class="block mt-1 text-[10px] font-semibold {{ 'text-blue-700' if loop.index0 <= order_idx else 'text-slate-400' }}">{{ label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div class="space-y-1 text-slate-600">
+            <div><strong class="text-slate-800">Manzil:</strong> {{ o.district ~ ', ' if o.district }}{{ o.address }}</div>
+            {% if o.description %}
+            <div><strong class="text-slate-800">Izoh:</strong> {{ o.description }}</div>
+            {% endif %}
+            {% if o.admin_note %}
+            <div class="text-blue-700"><strong>Operator izohi:</strong> {{ o.admin_note }}</div>
+            {% endif %}
+          </div>
+          <div class="flex flex-col sm:items-end justify-between gap-2">
+            {% if o.master_name %}
+            <div class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+              <div class="text-emerald-800 font-bold">Biriktirilgan usta: {{ o.master_name }}</div>
+              <div class="text-emerald-700 mt-0.5">Tel: {{ o.master_phone }}</div>
+            </div>
+            {% else %}
+            <div class="text-xs text-slate-400 italic">Usta tayinlanishi kutilmoqda...</div>
+            {% endif %}
+
+            {% if o.photo_path %}
+            <a href="{{ o.photo_path }}" target="_blank" class="text-xs font-bold text-blue-600 hover:underline">
+              🖼 Yuklangan rasmni ko'rish
+            </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+          {% if o.status == 'new' %}
+          <button onclick="cancelMyOrder({{ o.id }}, '{{ o.client_phone }}')" class="px-3.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold cursor-pointer">
+            Arizani bekor qilish
+          </button>
+          {% elif o.status == 'completed' and not o.client_rating %}
+          <form onsubmit="rateOrder(event, {{ o.id }}, '{{ o.client_phone }}')" class="flex flex-wrap items-center gap-2 w-full bg-slate-50 p-3 rounded-xl">
+            <span class="text-xs font-bold text-slate-700">Ustani baholang:</span>
+            <select name="rating" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold bg-white">
+              <option value="5">★★★★★ (5)</option>
+              <option value="4">★★★★☆ (4)</option>
+              <option value="3">★★★☆☆ (3)</option>
+              <option value="2">★★☆☆☆ (2)</option>
+              <option value="1">★☆☆☆☆ (1)</option>
+            </select>
+            <input type="text" name="review" placeholder="Fikringiz (ixtiyoriy)..." class="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" />
+            <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-bold cursor-pointer">Saqlash</button>
+          </form>
+          {% elif o.client_rating %}
+          <div class="text-xs font-bold text-amber-600">
+            Sizning bahoingiz: {{ "★" * o.client_rating }} {{ "(" ~ o.client_review ~ ")" if o.client_review }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+        <p class="text-slate-600 font-semibold">
+          {% if lookup_phone %}
+            "{{ lookup_phone }}" raqami bo'yicha arizalar topilmadi.
+          {% else %}
+            Arizalaringizni ko'rish uchun yuqorida telefon raqamingizni kiriting yoki kiring.
+          {% endif %}
+        </p>
+        <a href="/#xizmatlar" class="inline-block mt-4 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold">
+          Usta chaqirish
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function cancelMyOrder(orderId, phone) {
+    if (!confirm("Rostdan ham ushbu arizani bekor qilmoqchimisiz?")) return;
+    const fd = new FormData();
+    fd.append("phone", phone);
+    const res = await fetch(`/api/client/orders/${orderId}/cancel`, { method: "POST", body: fd });
+    if (res.ok) {
+      location.reload();
+    } else {
+      const d = await res.json();
+      alert(d.detail || "Xatolik");
+    }
+  }
+
+  async function rateOrder(e, orderId, phone) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    fd.append("phone", phone);
+    const res = await fetch(`/api/client/orders/${orderId}/rate`, { method: "POST", body: fd });
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert("Bahoni saqlashda xatolik");
+    }
+  }
+</script>
+{% endblock %}

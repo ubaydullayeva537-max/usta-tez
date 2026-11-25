@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}
+  {{ 'Admin Panel Kirish' if mode == 'admin' else 'Mijoz Kabineti Kirish' }} — {{ cfg.company_name or 'UstaBor' }}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-12">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7 shadow-xl">
+    {% if mode == 'admin' %}
+      <div class="w-12 h-12 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center mb-4">
+        <i data-lucide="shield-check" class="w-6 h-6"></i>
+      </div>
+      <h1 class="text-2xl font-extrabold text-slate-900">Admin Panelga kirish</h1>
+      <p class="text-sm text-slate-500 mt-1">Arizalar, xizmatlar, ustalar va Telegram botni boshqarish bo'limi</p>
+
+      {% if error %}
+      <div class="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/admin/login" class="mt-6 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Admin login</label>
+          <input type="text" name="username" required placeholder="admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Parol</label>
+          <input type="password" name="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm transition cursor-pointer">
+          Admin panelga kirish
+        </button>
+      </form>
+
+      <div class="mt-5 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+        Standart kirish: <code>admin</code> / <code>admin123</code> (Admin paneldan parolni o'zgartirish mumkin)
+      </div>
+    {% else %}
+      <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mb-4">
+        <i data-lucide="user" class="w-6 h-6"></i>
+      </div>
+      <h1 class="text-2xl font-extrabold text-slate-900">Mijoz kabineti</h1>
+      <p class="text-sm text-slate-500 mt-1">Barcha arizalaringiz va usta ma'lumotlari bir joyda</p>
+
+      <div class="mt-5 grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+        <button type="button" onclick="switchClientTab('login')" id="tabBtnLogin" class="py-2 rounded-lg transition cursor-pointer {{ 'bg-white text-slate-900 shadow-sm' if tab != 'register' else 'text-slate-500' }}">Kirish</button>
+        <button type="button" onclick="switchClientTab('register')" id="tabBtnReg" class="py-2 rounded-lg transition cursor-pointer {{ 'bg-white text-slate-900 shadow-sm' if tab == 'register' else 'text-slate-500' }}">Ro'yxatdan o'tish</button>
+      </div>
+
+      {% if error %}
+      <div class="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">{{ error }}</div>
+      {% endif %}
+
+      <form id="clientLoginForm" method="POST" action="/client/login" class="mt-5 space-y-4 {{ 'hidden' if tab == 'register' }}">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Telefon raqam</label>
+          <input type="tel" name="phone" required placeholder="+998901234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Parol</label>
+          <input type="password" name="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition cursor-pointer">
+          Kirish
+        </button>
+        <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-xs text-blue-800">
+          Demo mijoz: <code>+998901234567</code> / <code>client123</code>
+        </div>
+      </form>
+
+      <form id="clientRegForm" method="POST" action="/client/register" class="mt-5 space-y-3.5 {{ 'hidden' if tab != 'register' }}">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Ism-familiya *</label>
+          <input type="text" name="full_name" required placeholder="Alisher Valiyev" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Telefon raqam *</label>
+          <input type="tel" name="phone" required placeholder="+998901234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Doimiy manzil (ixtiyoriy)</label>
+          <input type="text" name="default_address" placeholder="Toshkent, Chilonzor..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Parol (kamida 4 belgi) *</label>
+          <input type="password" name="password" required minlength="4" placeholder="••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition cursor-pointer">
+          Ro'yxatdan o'tish
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchClientTab(tab) {
+    const loginForm = document.getElementById("clientLoginForm");
+    const regForm = document.getElementById("clientRegForm");
+    const btnL = document.getElementById("tabBtnLogin");
+    const btnR = document.getElementById("tabBtnReg");
+    if (!loginForm || !regForm) return;
+    if (tab === "register") {
+      loginForm.classList.add("hidden");
+      regForm.classList.remove("hidden");
+      btnR.className = "py-2 rounded-lg transition cursor-pointer bg-white text-slate-900 shadow-sm";
+      btnL.className = "py-2 rounded-lg transition cursor-pointer text-slate-500";
+    } else {
+      regForm.classList.add("hidden");
+      loginForm.classList.remove("hidden");
+      btnL.className = "py-2 rounded-lg transition cursor-pointer bg-white text-slate-900 shadow-sm";
+      btnR.className = "py-2 rounded-lg transition cursor-pointer text-slate-500";
+    }
+  }
+</script>
+{% endblock %}

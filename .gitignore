@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+usta_xizmati.db
+usta_xizmati.db-wal
+usta_xizmati.db-shm
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+scripts/downloaded_photos/
+scripts/contact_sheet.png
+scripts/upgraded_*.png
+scripts/image_manifest.json
+.vercel/

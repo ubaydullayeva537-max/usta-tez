@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}{{ cfg.company_name or 'UstaBor' }} — Usta chaqirish xizmati{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-12">
+  <!-- HERO -->
+  <section class="hero-card p-7 sm:p-12 text-white shadow-xl">
+    <img src="/static/images/hero.jpg" alt="Usta xizmati" class="hero-bg" />
+    <div class="hero-overlay"></div>
+    <div class="relative z-10 max-w-2xl">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider mb-4">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        Sayt va Telegram bot orqali 24/7 xizmat
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold leading-tight tracking-tight">
+        Har qanday ish uchun ishonchli <span class="text-amber-400">ustani</span> 1 daqiqada chaqiring
+      </h1>
+      <p class="mt-4 text-slate-200 text-base sm:text-lg leading-relaxed">
+        Avto va elektromobil, uy qurish va evro remont, santexnika, elektrik, konditsioner, texnika ta'miri, mebel, mangal va 30+ xizmat turlari — barchasi bir joyda.
+      </p>
+      <div class="mt-7 flex flex-wrap items-center gap-3">
+        <button onclick="openOrderModal()" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm sm:text-base shadow-lg transition cursor-pointer">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          Tezkor ariza yuborish
+        </button>
+        <a href="#xizmatlar" class="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base border border-white/20 transition">
+          <i data-lucide="grid" class="w-4 h-4"></i>
+          {{ services|length }} ta xizmatni ko'rish
+        </a>
+        {% if bot_status.running and bot_status.bot_username %}
+        <a href="https://t.me/{{ bot_status.bot_username.lstrip('@') }}" target="_blank" class="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 font-semibold text-sm border border-sky-400/30 transition">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+          Telegram Bot: {{ bot_status.bot_username }}
+        </a>
+        {% else %}
+        <a href="{{ nav.client_url if nav else '/client' }}" class="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/20 transition">
+          <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+          Arizamni tekshirish
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="mt-8 grid grid-cols-3 gap-4 pt-6 border-t border-white/15 max-w-lg text-xs sm:text-sm">
+        <div>
+          <div class="text-xl sm:text-2xl font-extrabold text-white">{{ services|length }}+</div>
+          <div class="text-slate-300">Xizmat turlari</div>
+        </div>
+        <div>
+          <div class="text-xl sm:text-2xl font-extrabold text-amber-400">30 daq</div>
+          <div class="text-slate-300">O'rtacha yetib borish</div>
+        </div>
+        <div>
+          <div class="text-xl sm:text-2xl font-extrabold text-emerald-400">100%</div>
+          <div class="text-slate-300">Kafolatli ustalar</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEARCH & CATEGORIES -->
+  <section id="xizmatlar" class="mt-10">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Xizmatlar katalogi</h2>
+        <p class="text-slate-500 text-sm mt-1">Kerakli usta turini tanlang va rasm yoki tavsifi bilan ariza yuboring</p>
+      </div>
+      <div class="relative w-full md:w-80">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+        <input
+          id="serviceSearch"
+          type="text"
+          placeholder="Xizmat qidirish (masalan: santexnik, kafel)..."
+          class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    </div>
+
+    <div class="mt-5 flex items-center gap-2 overflow-x-auto no-scrollbar pb-2" id="categoryPills">
+      <button class="cat-pill active" data-group="all">Barchasi ({{ services|length }})</button>
+      {% for grp in groups %}
+      <button class="cat-pill" data-group="{{ grp }}">{{ grp }}</button>
+      {% endfor %}
+    </div>
+
+    <!-- SERVICES GRID -->
+    <div id="servicesGrid" class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for svc in services %}
+      <article
+        class="service-card flex flex-col"
+        data-group="{{ svc.group_name }}"
+        data-name="{{ svc.name|lower }} {{ svc.description|lower }} {{ svc.group_name|lower }}"
+      >
+        <div class="relative h-48 overflow-hidden bg-slate-100">
+          <img src="{{ svc.image_url }}" alt="{{ svc.name }}" class="w-full h-full object-cover" loading="lazy" />
+          <div class="absolute top-3 left-3 flex items-center gap-1.5">
+            <span class="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur text-white text-[11px] font-semibold">
+              {{ svc.group_name }}
+            </span>
+            {% if svc.is_popular %}
+            <span class="px-2.5 py-1 rounded-full bg-amber-500 text-slate-950 text-[11px] font-bold">
+              Ommabop
+            </span>
+            {% endif %}
+          </div>
+          <span class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-white/95 text-slate-900 text-xs font-bold shadow-sm flex items-center gap-1">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-blue-600"></i>
+            ~{{ svc.eta_minutes }} daq
+          </span>
+        </div>
+        <div class="p-5 flex-1 flex flex-col">
+          <h3 class="text-lg font-bold text-slate-900">{{ svc.name }}</h3>
+          <p class="mt-1.5 text-sm text-slate-600 leading-relaxed flex-1">{{ svc.description }}</p>
+          <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div>
+              <span class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold block">Boshlang'ich narx</span>
+              <span class="text-base font-extrabold text-slate-900">{{ svc.price_from|uzs }} <span class="text-xs font-semibold text-slate-500">{{ svc.unit }}</span></span>
+            </div>
+            <button
+              onclick="openOrderModal({{ svc.id }}, '{{ svc.name|replace("'", "\\'") }}')"
+              class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <span>Chaqirish</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div id="emptyServicesMsg" class="hidden text-center py-14 bg-white rounded-2xl border border-slate-200 mt-6">
+      <p class="text-slate-500 font-medium">So'rovingiz bo'yicha xizmat topilmadi.</p>
+    </div>
+  </section>
+
+  <!-- TOP MASTERS -->
+  <section class="mt-16">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Tajribali ustalarimiz</h2>
+        <p class="text-slate-500 text-sm mt-1">Tekshirilgan va yuqori baholangan mutaxassislar</p>
+      </div>
+      <a href="/client" class="text-sm font-bold text-blue-600 hover:underline">Mening arizalarim →</a>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for m in masters[:6] %}
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 flex items-start gap-3.5">
+        <div class="w-12 h-12 rounded-xl bg-slate-900 text-amber-400 font-extrabold flex items-center justify-center shrink-0 text-lg">
+          {{ m.full_name[0] }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold text-slate-900 truncate">{{ m.full_name }}</h3>
+            <span class="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              ★ {{ "%.1f"|format(m.rating) }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-600 mt-0.5 truncate">{{ m.specialty }}</p>
+          <div class="mt-2 flex items-center gap-3 text-[11px] text-slate-500 font-medium">
+            <span>{{ m.experience_years }} yil tajriba</span>
+            <span>•</span>
+            <span>{{ m.completed_jobs }} ta ish</span>
+            <span>•</span>
+            <span class="{{ 'text-emerald-600 font-bold' if m.status == 'available' else 'text-amber-600 font-bold' }}">
+              {{ "Bo'sh" if m.status == 'available' else "Band" }}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<!-- ORDER MODAL -->
+<div id="orderModal" class="modal-backdrop">
+  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto relative">
+    <button onclick="closeOrderModal()" class="absolute top-4 right-4 w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+
+    <div id="orderFormWrap">
+      <div class="flex items-center gap-2.5 mb-1">
+        <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+        </span>
+        <div>
+          <h3 class="text-xl font-extrabold text-slate-900">Usta chaqirish (Ariza)</h3>
+          <p class="text-xs text-slate-500">Ma'lumotlarni kiriting, admin panelga darhol tushadi</p>
+        </div>
+      </div>
+
+      <form id="orderForm" class="mt-5 space-y-4" enctype="multipart/form-data">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Xizmat turi *</label>
+          <select id="modalServiceId" name="service_id" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {% for svc in services %}
+            <option value="{{ svc.id }}">{{ svc.name }} ({{ svc.price_from|uzs }} {{ svc.unit }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Ism-familiyangiz *</label>
+            <input type="text" name="client_name" required value="{{ client.full_name if client else '' }}" placeholder="Masalan: Jasur Alimov" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Telefon raqam *</label>
+            <input type="tel" name="client_phone" required value="{{ client.phone if client else '' }}" placeholder="+998901234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Tuman / Hudud</label>
+            <input type="text" name="district" placeholder="Chilonzor, Yunusobod..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Qulay vaqt</label>
+            <select name="preferred_time" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Tezda (1 soat ichida)">Tezda (1 soat ichida)</option>
+              <option value="Bugun kunduzi">Bugun kunduzi</option>
+              <option value="Bugun kechqurun">Bugun kechqurun</option>
+              <option value="Ertaga ertalab">Ertaga ertalab</option>
+              <option value="Kelishilgan vaqtda">Kelishilgan vaqtda</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">To'liq manzil *</label>
+          <input type="text" name="address" required value="{{ client.default_address if client else '' }}" placeholder="Ko'cha, uy, xonadon raqami" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Muammo tavsifi</label>
+          <textarea name="description" rows="3" placeholder="Nima ta'mirlash yoki o'rnatish kerakligini yozing..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Muammo rasmi (ixtiyoriy)</label>
+          <input type="file" name="photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+        </div>
+
+        <button id="submitOrderBtn" type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition cursor-pointer">
+          Arizani yuborish
+        </button>
+      </form>
+    </div>
+
+    <div id="orderSuccessWrap" class="hidden text-center py-6">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="check-circle-2" class="w-9 h-9"></i>
+      </div>
+      <h3 class="text-xl font-extrabold text-slate-900">Arizangiz qabul qilindi!</h3>
+      <p class="mt-2 text-sm text-slate-600">Ariza raqami: <strong id="createdOrderCode" class="text-slate-900"></strong></p>
+      <p class="mt-1 text-xs text-slate-500">Operatorimiz tez orada bog'lanadi. Holatini Mijoz panelida kuzatishingiz mumkin.</p>
+      <div class="mt-6 flex flex-col sm:flex-row gap-2.5 justify-center">
+        <a id="trackOrderLink" href="/client" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition">
+          Mijoz panelida ko'rish
+        </a>
+        <button onclick="closeOrderModal()" class="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition cursor-pointer">
+          Yopish
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const searchInput = document.getElementById("serviceSearch");
+  const pills = document.querySelectorAll(".cat-pill");
+  const cards = document.querySelectorAll("#servicesGrid .service-card");
+  const emptyMsg = document.getElementById("emptyServicesMsg");
+  let activeGroup = "all";
+
+  function filterServices() {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    let visible = 0;
+    cards.forEach((card) => {
+      const grp = card.dataset.group;
+      const txt = card.dataset.name;
+      const matchGroup = activeGroup === "all" || grp === activeGroup;
+      const matchText = !q || txt.includes(q);
+      if (matchGroup && matchText) {
+        card.style.display = "";
+        visible++;
+      } else {
+        card.style.display = "none";
+      }
+    });
+    emptyMsg.classList.toggle("hidden", visible > 0);
+  }
+
+  pills.forEach((pill) => {
+    pill.addEventListener("click", () => {
+      pills.forEach((p) => p.classList.remove("active"));
+      pill.classList.add("active");
+      activeGroup = pill.dataset.group;
+      filterServices();
+    });
+  });
+  searchInput.addEventListener("input", filterServices);
+
+  function openOrderModal(serviceId) {
+    document.getElementById("orderFormWrap").classList.remove("hidden");
+    document.getElementById("orderSuccessWrap").classList.add("hidden");
+    if (serviceId) {
+      document.getElementById("modalServiceId").value = String(serviceId);
+    }
+    document.getElementById("orderModal").classList.add("open");
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeOrderModal() {
+    document.getElementById("orderModal").classList.remove("open");
+  }
+
+  document.getElementById("orderForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitOrderBtn");
+    btn.disabled = true;
+    btn.textContent = "Yuborilmoqda...";
+    try {
+      const fd = new FormData(e.target);
+      const res = await fetch("/api/orders", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || "Xatolik yuz berdi");
+        return;
+      }
+      document.getElementById("createdOrderCode").textContent = data.order.order_code;
+      document.getElementById("trackOrderLink").href = "{{ nav.client_url if nav else '/client' }}?phone=" + encodeURIComponent(data.order.client_phone);
+      document.getElementById("orderFormWrap").classList.add("hidden");
+      document.getElementById("orderSuccessWrap").classList.remove("hidden");
+      e.target.reset();
+      showToast("Ariza muvaffaqiyatli yuborildi!");
+      if (window.lucide) window.lucide.createIcons();
+    } catch (err) {
+      alert("Server bilan ulanishda xatolik.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Arizani yuborish";
+    }
+  });
+</script>
+{% endblock %}
