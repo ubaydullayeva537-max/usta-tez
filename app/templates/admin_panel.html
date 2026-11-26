@@ -344,9 +344,16 @@
 
 {% block scripts %}
 <script>
+  const ADMIN_API_TOKEN = {{ (admin_api_token or '')|tojson }};
   const STATUS_LABELS = {{ status_labels|tojson }};
   let MASTERS_LIST = {{ masters|tojson }};
   let ORDERS_LIST = {{ orders|tojson }};
+
+  function admHeaders(extra = {}) {
+    const h = { ...extra };
+    if (ADMIN_API_TOKEN) h["Authorization"] = "Bearer " + ADMIN_API_TOKEN;
+    return h;
+  }
 
   function showSection(name) {
     ["orders", "services", "masters", "telegram"].forEach((s) => {
@@ -454,7 +461,7 @@
     if (svc) params.set("service_id", svc);
     if (q) params.set("search", q);
 
-    const res = await fetch("/api/admin/dashboard?" + params.toString());
+    const res = await fetch("/api/admin/dashboard?" + params.toString(), { headers: admHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     MASTERS_LIST = data.masters;
@@ -478,12 +485,65 @@
     `).join("");
 
     renderOrdersTable(data.orders);
+    renderServicesGrid(data.services);
+    renderMastersGrid(data.masters);
+  }
+
+  function renderServicesGrid(services) {
+    const grid = document.getElementById("adminServicesGrid");
+    if (!grid || !services) return;
+    document.getElementById("nav-services").innerHTML = `<i data-lucide="wrench" class="w-4 h-4"></i> Xizmatlar (${services.length})`;
+    grid.innerHTML = services.map((svc) => `
+      <div class="bg-white border border-slate-200 rounded-2xl p-4 flex gap-3.5 shadow-sm">
+        <img src="${escHtml(svc.image_url)}" alt="${escHtml(svc.name)}" class="w-20 h-20 rounded-xl object-cover shrink-0 bg-slate-100" />
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="font-bold text-slate-900 text-sm truncate">${escHtml(svc.name)}</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${svc.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
+              ${svc.is_active ? 'Faol' : 'Nofaol'}
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-0.5">${escHtml(svc.group_name)}</div>
+          <div class="text-xs font-extrabold text-slate-900 mt-1.5">${formatUzs(svc.price_from)} ${escHtml(svc.unit)}</div>
+          <div class="mt-2.5 flex items-center gap-2">
+            <button onclick='openServiceModal(${JSON.stringify(svc).replace(/'/g, "&#39;")})' class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold cursor-pointer">Tahrirlash</button>
+            <button onclick="deleteService(${svc.id})" class="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-bold cursor-pointer">O'chirish</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function renderMastersGrid(masters) {
+    const wrap = document.getElementById("mastersListWrap");
+    if (!wrap || !masters) return;
+    document.getElementById("nav-masters").innerHTML = `<i data-lucide="users" class="w-4 h-4"></i> Ustalar (${masters.length})`;
+    wrap.innerHTML = masters.map((m) => `
+      <div class="border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between gap-2">
+        <div>
+          <div class="flex items-center justify-between">
+            <strong class="text-sm text-slate-900">${escHtml(m.full_name)}</strong>
+            <span class="text-xs font-bold text-amber-600">★ ${Number(m.rating || 4.9).toFixed(1)}</span>
+          </div>
+          <div class="text-xs text-slate-600 mt-0.5">${escHtml(m.specialty)}</div>
+          <div class="text-xs text-slate-500 mt-1">📞 ${escHtml(m.phone)} • 📍 ${escHtml(m.district)}</div>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+          <select onchange="updateMasterStatus(${m.id}, this.value, '${escHtml(m.district).replace(/'/g, "\\'")}', '${escHtml(m.specialty).replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold">
+            <option value="available" ${m.status === 'available' ? 'selected' : ''}>🟢 Bo'sh</option>
+            <option value="busy" ${m.status === 'busy' ? 'selected' : ''}>🟡 Band</option>
+            <option value="offline" ${m.status === 'offline' ? 'selected' : ''}>⚫ Offlayn</option>
+          </select>
+          <button onclick="deleteMaster(${m.id})" class="text-xs text-red-600 font-bold hover:underline cursor-pointer">O'chirish</button>
+        </div>
+      </div>
+    `).join("");
   }
 
   async function patchOrder(orderId, payload) {
     const res = await fetch(`/api/admin/orders/${orderId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: admHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (res.ok) {
@@ -496,7 +556,7 @@
 
   async function deleteOrder(orderId) {
     if (!confirm("Ushbu arizani o'chirmoqchimisiz?")) return;
-    const res = await fetch(`/api/admin/orders/${orderId}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/orders/${orderId}`, { method: "DELETE", headers: admHeaders() });
     if (res.ok) {
       showToast("Ariza o'chirildi");
       refreshAdminData();
@@ -528,9 +588,11 @@
     fd.set("is_popular", document.getElementById("svcPopular").checked ? "true" : "false");
     fd.set("is_active", document.getElementById("svcActive").checked ? "true" : "false");
     const url = editId ? `/api/admin/services/${editId}` : "/api/admin/services";
-    const res = await fetch(url, { method: "POST", body: fd });
+    const res = await fetch(url, { method: "POST", headers: admHeaders(), body: fd });
     if (res.ok) {
-      location.reload();
+      closeServiceModal();
+      showToast("Xizmat saqlandi!");
+      refreshAdminData();
     } else {
       alert("Xizmatni saqlashda xatolik");
     }
@@ -538,8 +600,11 @@
 
   async function deleteService(id) {
     if (!confirm("Xizmatni o'chirmoqchimisiz?")) return;
-    const res = await fetch(`/api/admin/services/${id}`, { method: "DELETE" });
-    if (res.ok) location.reload();
+    const res = await fetch(`/api/admin/services/${id}`, { method: "DELETE", headers: admHeaders() });
+    if (res.ok) {
+      showToast("Xizmat o'chirildi");
+      refreshAdminData();
+    }
   }
 
   // Masters
@@ -549,17 +614,20 @@
     const payload = Object.fromEntries(fd.entries());
     const res = await fetch("/api/admin/masters", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: admHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
-    if (res.ok) location.reload();
-    else alert("Usta qo'shishda xatolik");
+    if (res.ok) {
+      e.target.reset();
+      showToast("Yangi usta qo'shildi!");
+      refreshAdminData();
+    } else alert("Usta qo'shishda xatolik");
   });
 
   async function updateMasterStatus(id, status, district, specialty) {
     const res = await fetch(`/api/admin/masters/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: admHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ status, district, specialty }),
     });
     if (res.ok) showToast("Usta holati saqlandi");
@@ -567,8 +635,11 @@
 
   async function deleteMaster(id) {
     if (!confirm("Ustani ro'yxatdan o'chirmoqchimisiz?")) return;
-    const res = await fetch(`/api/admin/masters/${id}`, { method: "DELETE" });
-    if (res.ok) location.reload();
+    const res = await fetch(`/api/admin/masters/${id}`, { method: "DELETE", headers: admHeaders() });
+    if (res.ok) {
+      showToast("Usta o'chirildi");
+      refreshAdminData();
+    }
   }
 
   // Telegram Bot Config
@@ -581,7 +652,7 @@
 
     const res = await fetch("/api/admin/bot/config", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: admHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ telegram_bot_token: token, admin_telegram_ids: adminIds }),
     });
     const data = await res.json();
@@ -605,7 +676,7 @@
   });
 
   async function stopBot() {
-    await fetch("/api/admin/bot/stop", { method: "POST" });
+    await fetch("/api/admin/bot/stop", { method: "POST", headers: admHeaders() });
     document.getElementById("botStatusBadge").textContent = "To'xtatilgan";
     document.getElementById("botStatusBadge").className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600";
     document.getElementById("botDotSidebar").className = "w-2.5 h-2.5 rounded-full bg-slate-500";
@@ -617,7 +688,7 @@
     const payload = Object.fromEntries(new FormData(e.target).entries());
     const res = await fetch("/api/admin/settings", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: admHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (res.ok) showToast("Sozlamalar saqlandi!");

@@ -29,7 +29,7 @@ Ushbu dastur **Veb-sayt (Mijoz va Admin panellari)** hamda **Telegram Bot** orqa
 2. Brauzerda oching:
    - **Mijoz sayti:** `http://127.0.0.1:5002/`
    - **Mijoz paneli (Kabinet):** `http://127.0.0.1:5003/` (Demo: `+998901234567` / `client123`)
-   - **Admin paneli:** `http://127.0.0.1:5004/` (Standart: `admin` / `admin123`)
+   - **Admin paneli:** `http://127.0.0.1:5004/` (`abdulloh` / `abdulloh2004`)
 
 ## Telegram Botni ulash
 1. Telegramda `@BotFather` ga kirib `/newbot` orqali yangi bot yarating va **Token** oling.

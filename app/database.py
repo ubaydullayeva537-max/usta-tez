@@ -169,8 +169,9 @@ def init_db() -> None:
                 (settings.ADMIN_TELEGRAM_IDS,),
             )
 
-        # Default admin account
+        # Ensure configured admin account exists and remove legacy default 'admin'
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute("DELETE FROM admins WHERE username = 'admin' AND ? != 'admin'", (settings.ADMIN_USERNAME,))
         existing_admin = conn.execute(
             "SELECT id FROM admins WHERE username = ?", (settings.ADMIN_USERNAME,)
         ).fetchone()

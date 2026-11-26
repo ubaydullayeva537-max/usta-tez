@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     CLIENT_PORT: int = 5003
     ADMIN_PORT: int = 5004
     SECRET_KEY: str = "ustabor-super-secret-change-in-production-2026"
-    ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "admin123"
+    ADMIN_USERNAME: str = "abdulloh"
+    ADMIN_PASSWORD: str = "abdulloh2004"
     TELEGRAM_BOT_TOKEN: str = ""
     ADMIN_TELEGRAM_IDS: str = ""
 

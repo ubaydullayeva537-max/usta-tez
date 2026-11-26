@@ -3,8 +3,8 @@
     let activeCategory = "Barchasi";
     let backendOnline = false;
     let API_BASE = "";
-    let adminToken = sessionStorage.getItem("ustabor_adm_token") || "";
-    let isAdminLogged = Boolean(adminToken) || sessionStorage.getItem("ustabor_adm_ok") === "1";
+    let adminToken = "";
+    let isAdminLogged = false;
     let adminPollTimer = null;
 
     function loadStore() {
@@ -56,7 +56,7 @@
 
     async function detectBackend() {
       const candidates = location.protocol === "file:"
-        ? [localStorage.getItem("ustabor_api_base") || "http://127.0.0.1:5002"]
+        ? [localStorage.getItem("ustabor_api_base"), "http://127.0.0.1:5002", "http://172.50.6.66:5002"].filter(Boolean)
         : ["", "http://127.0.0.1:5002"];
 
       for (const base of candidates) {
@@ -76,12 +76,12 @@
               renderCategories();
               renderServices();
               fillServiceDropdown();
-              if (isAdminLogged && adminToken) syncAdminDashboard();
-              return;
+              return true;
             }
           }
         } catch {}
       }
+      return false;
     }
 
     function switchView(name) {
@@ -89,10 +89,21 @@
         document.getElementById("view-" + v).classList.toggle("hidden", v !== name);
         document.getElementById("tab-" + v).classList.toggle("active", v === name);
       });
+      if (adminPollTimer) { clearInterval(adminPollTimer); adminPollTimer = null; }
+      if (name !== "admin") {
+        isAdminLogged = false;
+        adminToken = "";
+      }
       if (name === "client") renderClientOrders();
       if (name === "admin") {
+        // Require login and password every single time Admin Panel is opened
+        isAdminLogged = false;
+        adminToken = "";
+        const uEl = document.getElementById("admUser");
+        const pEl = document.getElementById("admPass");
+        if (uEl) uEl.value = "";
+        if (pEl) pEl.value = "";
         renderAdminView();
-        if (adminPollTimer) clearInterval(adminPollTimer);
         adminPollTimer = setInterval(() => {
           if (backendOnline && isAdminLogged && adminToken && !document.getElementById("view-admin").classList.contains("hidden")) {
             syncAdminDashboard();
@@ -190,6 +201,7 @@
       const photoFile = document.getElementById("ordPhoto").files[0];
 
       let created = null;
+      if (!backendOnline) await detectBackend();
       if (backendOnline) {
         try {
           const fd = new FormData();
@@ -298,6 +310,7 @@
     async function adminLogin() {
       const u = document.getElementById("admUser").value.trim();
       const p = document.getElementById("admPass").value;
+      if (!backendOnline) await detectBackend();
       if (backendOnline) {
         try {
           const res = await fetch(API_BASE + "/api/admin/token", {
@@ -309,8 +322,6 @@
             const data = await res.json();
             adminToken = data.token;
             isAdminLogged = true;
-            sessionStorage.setItem("ustabor_adm_token", adminToken);
-            sessionStorage.setItem("ustabor_adm_ok", "1");
             await syncAdminDashboard();
             renderAdminView();
             return;
@@ -320,20 +331,21 @@
           }
         } catch {}
       }
-      if (u === "admin" && p === "admin123") {
+      if (u === "abdulloh" && p === "abdulloh2004") {
         isAdminLogged = true;
-        sessionStorage.setItem("ustabor_adm_ok", "1");
         renderAdminView();
       } else {
-        alert("Login yoki parol noto'g'ri! Standart: admin / admin123");
+        alert("Admin login yoki parol noto'g'ri!");
       }
     }
 
     function adminLogout() {
       isAdminLogged = false;
       adminToken = "";
-      sessionStorage.removeItem("ustabor_adm_ok");
-      sessionStorage.removeItem("ustabor_adm_token");
+      const uEl = document.getElementById("admUser");
+      const pEl = document.getElementById("admPass");
+      if (uEl) uEl.value = "";
+      if (pEl) pEl.value = "";
       renderAdminView();
     }
 
@@ -341,8 +353,7 @@
       if (!backendOnline || !adminToken) return;
       try {
         const res = await fetch(API_BASE + "/api/admin/dashboard", {
-          headers: adminHeaders(),
-          credentials: "include"
+          headers: adminHeaders()
         });
         if (res.status === 401) {
           adminLogout();

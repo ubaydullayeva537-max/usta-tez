@@ -10,7 +10,29 @@ html = html.replace(
     '<img id="heroImg" src="./app/static/images/hero.jpg" alt="Usta xizmati" class="hero-bg" onerror="this.onerror=null;if(window.EMBEDDED_IMAGES&&EMBEDDED_IMAGES.hero)this.src=EMBEDDED_IMAGES.hero;" />'
 )
 
-# 2. Source filter in admin orders
+# 2. Clean Admin login box in index.html (no pre-filled values, no password hint)
+html = html.replace(
+    '''        <p style="margin:0 0 16px;color:var(--muted);font-size:0.85rem;">Standart kirish: <b>admin</b> / <b>admin123</b></p>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Login</label>
+          <input id="admUser" type="text" value="admin" />
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Parol</label>
+          <input id="admPass" type="password" value="admin123" />
+        </div>''',
+    '''        <p style="margin:0 0 16px;color:var(--muted);font-size:0.85rem;">Davom etish uchun admin login va parolini kiriting</p>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Login</label>
+          <input id="admUser" type="text" value="" autocomplete="off" placeholder="Login" />
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Parol</label>
+          <input id="admPass" type="password" value="" autocomplete="new-password" placeholder="Parol" />
+        </div>'''
+)
+
+# 3. Source filter in admin orders
 if 'id="admOrderFilterSource"' not in html:
     html = html.replace(
         '<select id="admOrderFilterStatus"',
@@ -21,7 +43,9 @@ if 'id="admOrderFilterSource"' not in html:
         '</select>\n                <select id="admOrderFilterStatus"'
     )
 
-marker = '    const LS_KEY = "ustabor_standalone_store_v1";'
+marker = '    const EMBEDDED_IMAGES ='
+if marker not in html:
+    marker = '    const LS_KEY = "ustabor_standalone_store_v1";'
 head = html[:html.index(marker)]
 embedded_json = (ROOT / "scripts" / "embedded_images.json").read_text(encoding="utf-8")
 tail = (ROOT / "scripts" / "index_tail.js").read_text(encoding="utf-8")

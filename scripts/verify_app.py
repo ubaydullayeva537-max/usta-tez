@@ -89,31 +89,48 @@ def main():
         assert tg_order["source"] == "telegram"
         print(f"[PASS] Telegram Bot order created in shared DB: {tg_order['order_code']}.")
 
-        # 7. Admin Login & Dashboard verification
-        r_alogin = client.post(
+        # 7. Admin Login & Dashboard verification (new credentials + per-visit login requirement)
+        r_old_adm = client.post(
             "/admin/login",
             data={"username": "admin", "password": "admin123"},
             follow_redirects=False,
         )
+        assert r_old_adm.status_code == 401
+
+        r_alogin = client.post(
+            "/admin/login",
+            data={"username": "abdulloh", "password": "abdulloh2004"},
+            follow_redirects=False,
+        )
         assert r_alogin.status_code == 302 and r_alogin.headers["location"] == "/admin"
 
-        r_admin_page = client.get("/admin")
+        r_admin_page = client.get("/admin", follow_redirects=False)
         assert r_admin_page.status_code == 200
         assert "Xizmatlar bo'yicha tushgan arizalar" in html.unescape(r_admin_page.text)
 
-        r_dash = client.get("/api/admin/dashboard")
+        # Second visit to /admin must ask for login/password again!
+        r_admin_second = client.get("/admin", follow_redirects=False)
+        assert r_admin_second.status_code == 302 and "/admin/login" in r_admin_second.headers["location"]
+
+        # Bearer token login for API dashboard (used by both admin_panel.html and index.html)
+        tok_res = client.post("/api/admin/token", json={"username": "abdulloh", "password": "abdulloh2004"})
+        assert tok_res.status_code == 200
+        adm_headers = {"Authorization": f"Bearer {tok_res.json()['token']}"}
+
+        r_dash = client.get("/api/admin/dashboard", headers=adm_headers)
         assert r_dash.status_code == 200
         dash = r_dash.json()
         codes = {o["order_code"] for o in dash["orders"]}
         assert created_order["order_code"] in codes
         assert tg_order["order_code"] in codes
         assert len(dash["stats"]["by_service"]) >= 2
-        print("[PASS] Admin Panel displays both Web and Telegram orders + per-service breakdown.")
+        print("[PASS] Admin Panel requires login on every visit and displays both Web & Telegram orders.")
 
         # 8. Admin assigns master and updates status
         master_id = dash["masters"][0]["id"]
         r_patch = client.patch(
             f"/api/admin/orders/{created_order['id']}",
+            headers=adm_headers,
             json={"status": "accepted", "master_id": master_id, "admin_note": "Usta yo'lga chiqdi"},
         )
         assert r_patch.status_code == 200
@@ -135,8 +152,8 @@ def main():
         print("[PASS] Telegram bot router and manager verified.")
 
         # Clean up test orders & test upload so demo DB stays clean
-        client.delete(f"/api/admin/orders/{created_order['id']}")
-        client.delete(f"/api/admin/orders/{tg_order['id']}")
+        client.delete(f"/api/admin/orders/{created_order['id']}", headers=adm_headers)
+        client.delete(f"/api/admin/orders/{tg_order['id']}", headers=adm_headers)
         uploaded_file = ROOT / "app" / created_order["photo_path"].lstrip("/")
         if uploaded_file.exists():
             uploaded_file.unlink()

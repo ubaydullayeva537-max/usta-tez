@@ -392,7 +392,7 @@ async def admin_login_submit(
         )
     token = create_session_token(admin, salt="admin-auth")
     resp = RedirectResponse(nav["admin_url"], status_code=302)
-    resp.set_cookie(ADMIN_COOKIE_NAME, token, max_age=SESSION_MAX_AGE, httponly=True, samesite="lax")
+    resp.set_cookie(ADMIN_COOKIE_NAME, token, max_age=30, httponly=True, samesite="lax")
     return resp
 
 
@@ -415,8 +415,9 @@ async def admin_panel(request: Request):
     groups = list_service_groups(active_only=False)
     masters = list_masters()
     cfg = get_all_settings()
+    admin_api_token = create_session_token(admin, salt="admin-auth")
 
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         request,
         "admin_panel.html",
         {
@@ -430,8 +431,12 @@ async def admin_panel(request: Request):
             "status_labels": STATUS_LABELS,
             "bot_status": bot_manager.status(),
             "nav": _nav_urls(request),
+            "admin_api_token": admin_api_token,
         },
     )
+    # Require login & password on every new visit/refresh to Admin Panel
+    resp.delete_cookie(ADMIN_COOKIE_NAME)
+    return resp
 
 
 # ========================
