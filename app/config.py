@@ -24,7 +24,7 @@ SERVICES_IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 class Settings(BaseSettings):
     APP_TITLE: str = "UstaBor - Professional Usta Chaqirish Xizmati"
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
     PORT: int = 5002
     CLIENT_PORT: int = 5003
     ADMIN_PORT: int = 5004

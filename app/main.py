@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -22,7 +22,7 @@ from app.auth import (
     normalize_phone,
 )
 from app.bot_manager import bot_manager
-from app.config import IS_VERCEL, SERVICES_IMG_DIR, STATIC_DIR, TEMPLATES_DIR, UPLOADS_DIR, settings
+from app.config import BASE_DIR, IS_VERCEL, SERVICES_IMG_DIR, STATIC_DIR, TEMPLATES_DIR, UPLOADS_DIR, settings
 from app.database import (
     STATUS_LABELS,
     create_order,
@@ -67,9 +67,15 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title=settings.APP_TITLE, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/app/static", StaticFiles(directory=str(STATIC_DIR)), name="app_static")
 if IS_VERCEL:
     app.mount("/tmp-uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="tmp_uploads")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+@app.get("/index.html")
+async def standalone_index():
+    return FileResponse(str(BASE_DIR / "index.html"))
 
 
 def _format_price(value: Any) -> str:
