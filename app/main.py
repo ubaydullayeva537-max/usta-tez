@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,6 +18,7 @@ from app.auth import (
     authenticate_admin,
     authenticate_client,
     create_session_token,
+    decode_session_token,
     get_current_admin,
     get_current_client,
     normalize_phone,
@@ -66,6 +68,13 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title=settings.APP_TITLE, lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=".*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/app/static", StaticFiles(directory=str(STATIC_DIR)), name="app_static")
 if IS_VERCEL:
@@ -136,6 +145,13 @@ def _nav_urls(request: Request) -> Dict[str, str]:
 
 def _require_admin_api(request: Request) -> Dict[str, Any]:
     admin = get_current_admin(request)
+    if not admin:
+        auth_hdr = request.headers.get("authorization", "")
+        if auth_hdr.lower().startswith("bearer "):
+            tok = auth_hdr.split(" ", 1)[1].strip()
+            data = decode_session_token(tok, salt="admin-auth")
+            if data and data.get("role") == "admin":
+                admin = data
     if not admin:
         raise HTTPException(status_code=401, detail="Admin autentifikatsiyasi talab qilinadi")
     return admin
@@ -533,6 +549,16 @@ async def api_client_rate_order(
 # =================
 # ADMIN REST APIs
 # =================
+
+@app.post("/api/admin/token")
+async def api_admin_token(request: Request):
+    data = await request.json()
+    admin = authenticate_admin(data.get("username", ""), data.get("password", ""))
+    if not admin:
+        raise HTTPException(status_code=401, detail="Admin login yoki parol noto'g'ri")
+    token = create_session_token(admin, salt="admin-auth")
+    return {"ok": True, "token": token, "admin": admin}
+
 
 @app.get("/api/admin/dashboard")
 async def api_admin_dashboard(

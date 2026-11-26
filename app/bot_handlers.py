@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -157,6 +158,13 @@ async def show_popular_services(message: Message) -> None:
     )
 
 
+async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_alert: bool = False) -> None:
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+    except TelegramBadRequest:
+        pass
+
+
 @router.callback_query(F.data == "back_groups")
 async def cb_back_groups(callback: CallbackQuery) -> None:
     groups = list_service_groups(active_only=True)
@@ -165,7 +173,7 @@ async def cb_back_groups(callback: CallbackQuery) -> None:
         builder.button(text=f"📂 {grp}", callback_data=f"grp:{idx}")
     builder.adjust(1)
     await callback.message.answer("<b>Xizmat yo'nalishini tanlang:</b>", reply_markup=builder.as_markup())
-    await callback.answer()
+    await safe_answer(callback)
 
 
 @router.callback_query(F.data.startswith("grp:"))
@@ -173,7 +181,7 @@ async def cb_group_services(callback: CallbackQuery) -> None:
     idx = int(callback.data.split(":", 1)[1])
     groups = list_service_groups(active_only=True)
     if idx < 0 or idx >= len(groups):
-        await callback.answer("Yo'nalish topilmadi", show_alert=True)
+        await safe_answer(callback, "Yo'nalish topilmadi", show_alert=True)
         return
     group_name = groups[idx]
     services = list_services(active_only=True, group_name=group_name)
@@ -186,7 +194,7 @@ async def cb_group_services(callback: CallbackQuery) -> None:
         f"📂 <b>{group_name}</b>\nKerakli xizmatni tanlang:",
         reply_markup=builder.as_markup(),
     )
-    await callback.answer()
+    await safe_answer(callback)
 
 
 @router.callback_query(F.data.startswith("svc:"))
@@ -194,7 +202,7 @@ async def cb_service_detail(callback: CallbackQuery) -> None:
     service_id = int(callback.data.split(":", 1)[1])
     svc = get_service(service_id)
     if not svc:
-        await callback.answer("Xizmat topilmadi", show_alert=True)
+        await safe_answer(callback, "Xizmat topilmadi", show_alert=True)
         return
 
     caption = (
@@ -217,7 +225,7 @@ async def cb_service_detail(callback: CallbackQuery) -> None:
         await callback.message.answer_photo(photo=FSInputFile(str(img_path)), caption=caption, reply_markup=kb)
     else:
         await callback.message.answer(caption, reply_markup=kb)
-    await callback.answer()
+    await safe_answer(callback)
 
 
 @router.callback_query(F.data.startswith("order:"))
@@ -225,7 +233,7 @@ async def cb_start_order(callback: CallbackQuery, state: FSMContext) -> None:
     service_id = int(callback.data.split(":", 1)[1])
     svc = get_service(service_id)
     if not svc:
-        await callback.answer("Xizmat topilmadi", show_alert=True)
+        await safe_answer(callback, "Xizmat topilmadi", show_alert=True)
         return
 
     await state.clear()
@@ -243,7 +251,7 @@ async def cb_start_order(callback: CallbackQuery, state: FSMContext) -> None:
         f"1/6. Ism-familiyangizni kiriting (yoki tugmani bosing):",
         reply_markup=ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True),
     )
-    await callback.answer()
+    await safe_answer(callback)
 
 
 @router.message(OrderForm.waiting_name)

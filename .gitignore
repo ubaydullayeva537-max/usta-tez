@@ -12,4 +12,5 @@ scripts/downloaded_photos/
 scripts/contact_sheet.png
 scripts/upgraded_*.png
 scripts/image_manifest.json
+scripts/embedded_images.json
 .vercel/
